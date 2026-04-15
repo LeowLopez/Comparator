@@ -1,805 +1,950 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SheetDiff — Comparador de Planilhas</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0f1117;
-    --surface: #181c27;
-    --surface2: #1e2333;
-    --border: #2a2f42;
-    --border-hover: #3d4460;
-    --text: #e2e6f0;
-    --text-muted: #7a82a0;
-    --text-dim: #4a5070;
-    --accent: #4f8ef7;
-    --accent-dim: rgba(79,142,247,0.12);
-    --green: #3dd68c;
-    --green-dim: rgba(61,214,140,0.1);
-    --green-border: rgba(61,214,140,0.3);
-    --red: #f7604f;
-    --red-dim: rgba(247,96,79,0.1);
-    --red-border: rgba(247,96,79,0.3);
-    --yellow: #f7c94f;
-    --yellow-dim: rgba(247,201,79,0.1);
-    --radius: 6px;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'IBM Plex Sans', sans-serif;
-  }
-
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 0;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /* ── Header ── */
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 18px 32px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--surface);
-  }
-
-  .logo {
-    font-family: var(--mono);
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-
-  .logo span { color: var(--accent); }
-
-  .logo-tag {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    padding: 2px 7px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-  }
-
-  /* ── Main layout ── */
-  main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 32px 32px 80px;
-  }
-
-  /* ── Section label ── */
-  .section-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 10px;
-  }
-
-  /* ── Upload grid ── */
-  .upload-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .upload-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0;
-    overflow: hidden;
-    transition: border-color 0.15s;
-  }
-
-  .upload-card-header {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    padding: 2px 8px;
-    border-radius: 3px;
-  }
-
-  .badge-base {
-    background: rgba(79,142,247,0.15);
-    color: var(--accent);
-    border: 1px solid rgba(79,142,247,0.3);
-  }
-
-  .badge-compare {
-    background: rgba(247,201,79,0.12);
-    color: var(--yellow);
-    border: 1px solid rgba(247,201,79,0.25);
-  }
-
-  .upload-card-header .card-title {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .drop-zone {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 32px 16px;
-    cursor: pointer;
-    transition: background 0.15s;
-    border: 1.5px dashed transparent;
-    border-radius: 0;
-    position: relative;
-  }
-
-  .drop-zone:hover, .drop-zone.dragging {
-    background: rgba(79,142,247,0.04);
-    border-color: var(--accent);
-  }
-
-  .drop-zone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-  }
-
-  .drop-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-  }
-
-  .drop-icon svg { color: var(--text-dim); }
-
-  .drop-text {
-    text-align: center;
-  }
-
-  .drop-text strong {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-  }
-
-  .drop-text small {
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  .file-loaded {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px;
-    background: var(--surface2);
-  }
-
-  .file-loaded-icon {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    background: rgba(61,214,140,0.12);
-    border: 1px solid var(--green-border);
-    flex-shrink: 0;
-  }
-
-  .file-info { flex: 1; min-width: 0; }
-
-  .file-name {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .file-meta {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 1px;
-  }
-
-  .btn-clear {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    font-family: var(--sans);
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .btn-clear:hover {
-    border-color: var(--red);
-    color: var(--red);
-  }
-
-  /* ── Controls row ── */
-  .controls-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 16px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
-
-  .control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .control-group label {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-
-  select {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 7px 10px;
-    border-radius: var(--radius);
-    font-family: var(--mono);
-    font-size: 13px;
-    cursor: pointer;
-    outline: none;
-    min-width: 180px;
-    transition: border-color 0.15s;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a82a0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 28px;
-  }
-
-  select:focus { border-color: var(--accent); }
-  select:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-primary {
-    background: var(--accent);
-    border: none;
-    color: #fff;
-    padding: 8px 20px;
-    border-radius: var(--radius);
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    letter-spacing: 0.02em;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .btn-primary:hover:not(:disabled) { background: #6a9ef8; }
-  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  /* ── Advanced options ── */
-  .advanced-block {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 20px;
-    overflow: hidden;
-  }
-
-  .advanced-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 16px;
-    cursor: pointer;
-    user-select: none;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    transition: color 0.15s;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-    font-family: var(--sans);
-  }
-
-  .advanced-toggle:hover { color: var(--text); }
-
-  .toggle-arrow {
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s;
-    margin-left: auto;
-    color: var(--text-dim);
-  }
-
-  .advanced-toggle.open .toggle-arrow { transform: rotate(180deg); }
-
-  .advanced-body {
-    display: none;
-    padding: 0 16px 16px;
-    border-top: 1px solid var(--border);
-  }
-
-  .advanced-body.open { display: block; }
-
-  .advanced-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    padding: 12px 0 14px;
-    line-height: 1.6;
-  }
-
-  .eq-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .eq-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .eq-row input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 7px 10px;
-    border-radius: var(--radius);
-    font-family: var(--mono);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  .eq-row input:focus { border-color: var(--accent); }
-  .eq-row input::placeholder { color: var(--text-dim); }
-
-  .eq-sep {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    white-space: nowrap;
-    padding: 0 2px;
-  }
-
-  .btn-remove-eq {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    width: 26px;
-    height: 26px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    flex-shrink: 0;
-    transition: all 0.15s;
-    line-height: 1;
-  }
-
-  .btn-remove-eq:hover { border-color: var(--red); color: var(--red); }
-
-  .btn-add-eq {
-    background: none;
-    border: 1px dashed var(--border);
-    color: var(--text-muted);
-    padding: 6px 12px;
-    border-radius: var(--radius);
-    font-size: 12px;
-    cursor: pointer;
-    font-family: var(--sans);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.15s;
-  }
-
-  .btn-add-eq:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* ── Diff output ── */
-  .diff-section {
-    display: none;
-  }
-
-  .diff-section.visible { display: block; }
-
-  .diff-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  .diff-title {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .diff-stats {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-
-  .stat-pill {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 3px 9px;
-    border-radius: 20px;
-  }
-
-  .stat-removed { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
-  .stat-added { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
-  .stat-unchanged { background: rgba(122,130,160,0.1); color: var(--text-muted); border: 1px solid rgba(122,130,160,0.2); }
-
-  .diff-table-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--mono);
-    font-size: 12.5px;
-  }
-
-  thead th {
-    background: var(--surface2);
-    padding: 9px 14px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background 0.1s;
-  }
-
-  tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: rgba(255,255,255,0.02); }
-
-  tbody td {
-    padding: 8px 14px;
-    vertical-align: middle;
-  }
-
-  .td-line {
-    width: 60px;
-    color: var(--text-dim);
-    font-size: 11px;
-    user-select: none;
-    text-align: right;
-    padding-right: 16px;
-  }
-
-  .td-marker {
-    width: 28px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 700;
-    padding: 0;
-  }
-
-  .td-value {
-    color: var(--text);
-    font-size: 13px;
-  }
-
-  .td-source {
-    font-size: 11px;
-    color: var(--text-dim);
-    white-space: nowrap;
-  }
-
-  .row-removed {
-    background: var(--red-dim) !important;
-  }
-
-  .row-removed .td-marker { color: var(--red); }
-  .row-removed .td-value { color: var(--red); }
-  .row-removed .td-source { color: rgba(247,96,79,0.5); }
-  .row-removed .td-line { color: rgba(247,96,79,0.4); }
-
-  .row-added {
-    background: var(--green-dim) !important;
-  }
-
-  .row-added .td-marker { color: var(--green); }
-  .row-added .td-value { color: var(--green); }
-  .row-added .td-source { color: rgba(61,214,140,0.5); }
-  .row-added .td-line { color: rgba(61,214,140,0.4); }
-
-  .row-unchanged .td-marker { color: var(--text-dim); }
-
-  /* Source labels above table */
-  .source-legend {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 10px;
-    font-size: 11px;
-    align-items: center;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .legend-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .legend-dot-base { background: var(--accent); }
-  .legend-dot-compare { background: var(--yellow); }
-
-  .legend-text { color: var(--text-muted); }
-  .legend-file { color: var(--text); font-weight: 500; }
-
-  /* Empty state */
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-dim);
-    font-size: 13px;
-  }
-
-  .empty-state .empty-icon {
-    font-size: 32px;
-    margin-bottom: 10px;
-    opacity: 0.4;
-  }
-
-  /* Divider */
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 24px 0;
-  }
-
-  /* Responsive */
-  @media (max-width: 700px) {
-    main { padding: 20px 16px 60px; }
-    .upload-grid { grid-template-columns: 1fr; }
-    header { padding: 14px 16px; }
-    .controls-row { flex-direction: column; align-items: stretch; }
-    select { min-width: 100%; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SheetDiff — Comparador de Planilhas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --surface2: #1e2333;
+      --border: #2a2f42;
+      --border-hover: #3d4460;
+      --text: #e2e6f0;
+      --text-muted: #7a82a0;
+      --text-dim: #4a5070;
+      --accent: #4f8ef7;
+      --accent-dim: rgba(79, 142, 247, 0.12);
+      --green: #3dd68c;
+      --green-dim: rgba(61, 214, 140, 0.1);
+      --green-border: rgba(61, 214, 140, 0.3);
+      --red: #f7604f;
+      --red-dim: rgba(247, 96, 79, 0.1);
+      --red-border: rgba(247, 96, 79, 0.3);
+      --yellow: #f7c94f;
+      --yellow-dim: rgba(247, 201, 79, 0.1);
+      --radius: 6px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .logo-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 32px 80px;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    /* ── Upload grid ── */
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .upload-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+
+    .upload-card-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    .badge-base {
+      background: rgba(79, 142, 247, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(79, 142, 247, 0.3);
+    }
+
+    .badge-compare {
+      background: rgba(247, 201, 79, 0.12);
+      color: var(--yellow);
+      border: 1px solid rgba(247, 201, 79, 0.25);
+    }
+
+    .upload-card-header .card-title {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .drop-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 32px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1.5px dashed transparent;
+      border-radius: 0;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragging {
+      background: rgba(79, 142, 247, 0.04);
+      border-color: var(--accent);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+
+    .drop-icon svg {
+      color: var(--text-dim);
+    }
+
+    .drop-text {
+      text-align: center;
+    }
+
+    .drop-text strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .drop-text small {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .file-loaded {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px;
+      background: var(--surface2);
+    }
+
+    .file-loaded-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: rgba(61, 214, 140, 0.12);
+      border: 1px solid var(--green-border);
+      flex-shrink: 0;
+    }
+
+    .file-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .btn-clear {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--sans);
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-clear:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* ── Controls row ── */
+    .controls-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-group label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+      min-width: 180px;
+      transition: border-color 0.15s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a82a0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    select:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #6a9ef8;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ── Advanced options ── */
+    .advanced-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 16px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: var(--sans);
+    }
+
+    .advanced-toggle:hover {
+      color: var(--text);
+    }
+
+    .toggle-arrow {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+      margin-left: auto;
+      color: var(--text-dim);
+    }
+
+    .advanced-toggle.open .toggle-arrow {
+      transform: rotate(180deg);
+    }
+
+    .advanced-body {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .advanced-body.open {
+      display: block;
+    }
+
+    .advanced-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 12px 0 14px;
+      line-height: 1.6;
+    }
+
+    .eq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .eq-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .eq-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .eq-row input:focus {
+      border-color: var(--accent);
+    }
+
+    .eq-row input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .eq-sep {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      padding: 0 2px;
+    }
+
+    .btn-remove-eq {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+
+    .btn-remove-eq:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .btn-add-eq {
+      background: none;
+      border: 1px dashed var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--sans);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-add-eq:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Diff output ── */
+    .diff-section {
+      display: none;
+    }
+
+    .diff-section.visible {
+      display: block;
+    }
+
+    .diff-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .diff-title {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .diff-stats {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    .stat-removed {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid var(--red-border);
+    }
+
+    .stat-added {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid var(--green-border);
+    }
+
+    .stat-unchanged {
+      background: rgba(122, 130, 160, 0.1);
+      color: var(--text-muted);
+      border: 1px solid rgba(122, 130, 160, 0.2);
+    }
+
+    .diff-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+
+    thead th {
+      background: var(--surface2);
+      padding: 9px 14px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    tbody td {
+      padding: 8px 14px;
+      vertical-align: middle;
+    }
+
+    .td-line {
+      width: 60px;
+      color: var(--text-dim);
+      font-size: 11px;
+      user-select: none;
+      text-align: right;
+      padding-right: 16px;
+    }
+
+    .td-marker {
+      width: 28px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 0;
+    }
+
+    .td-value {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .td-source {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .row-removed {
+      background: var(--red-dim) !important;
+    }
+
+    .row-removed .td-marker {
+      color: var(--red);
+    }
+
+    .row-removed .td-value {
+      color: var(--red);
+    }
+
+    .row-removed .td-source {
+      color: rgba(247, 96, 79, 0.5);
+    }
+
+    .row-removed .td-line {
+      color: rgba(247, 96, 79, 0.4);
+    }
+
+    .row-added {
+      background: var(--green-dim) !important;
+    }
+
+    .row-added .td-marker {
+      color: var(--green);
+    }
+
+    .row-added .td-value {
+      color: var(--green);
+    }
+
+    .row-added .td-source {
+      color: rgba(61, 214, 140, 0.5);
+    }
+
+    .row-added .td-line {
+      color: rgba(61, 214, 140, 0.4);
+    }
+
+    .row-unchanged .td-marker {
+      color: var(--text-dim);
+    }
+
+    .row-unchanged .td-marker {
+      color: var(--text-dim);
+    }
+
+    .row-unchanged .td-value {
+      color: var(--text-muted);
+    }
+
+    /* Source labels above table */
+    .source-legend {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 10px;
+      font-size: 11px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-dot-base {
+      background: var(--accent);
+    }
+
+    .legend-dot-compare {
+      background: var(--yellow);
+    }
+
+    .legend-text {
+      color: var(--text-muted);
+    }
+
+    .legend-file {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .empty-state .empty-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+      opacity: 0.4;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      main {
+        padding: 20px 16px 60px;
+      }
+
+      .upload-grid {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        padding: 14px 16px;
+      }
+
+      .controls-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      select {
+        min-width: 100%;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<header>
-  <div class="logo">Sheet<span>Diff</span></div>
-  <div class="logo-tag">v1.0</div>
-</header>
+  <header>
+    <div class="logo">Sheet<span>Diff</span></div>
+    <div class="logo-tag">v1.0</div>
+  </header>
 
-<main>
+  <main>
 
-  <!-- Upload -->
-  <div class="section-label">Planilhas para comparação</div>
-  <div class="upload-grid">
+    <!-- Upload -->
+    <div class="section-label">Planilhas para comparação</div>
+    <div class="upload-grid">
 
-    <!-- Base -->
-    <div class="upload-card" id="card-a">
-      <div class="upload-card-header">
-        <span class="badge badge-base">BASE</span>
-        <span class="card-title">Planilha de referência — saídas são medidas a partir daqui</span>
+      <!-- Base -->
+      <div class="upload-card" id="card-a">
+        <div class="upload-card-header">
+          <span class="badge badge-base">BASE</span>
+          <span class="card-title">Planilha de referência — saídas são medidas a partir daqui</span>
+        </div>
+        <div class="drop-zone" id="drop-a" ondragover="onDragOver(event,'a')" ondragleave="onDragLeave('a')"
+          ondrop="onDrop(event,'a')">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="onFileChange(event,'a')">
+          <div class="drop-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <div class="drop-text">
+            <strong>Arraste ou clique para selecionar</strong>
+            <small>.xlsx · .xls · .csv</small>
+          </div>
+        </div>
       </div>
-      <div class="drop-zone" id="drop-a" ondragover="onDragOver(event,'a')" ondragleave="onDragLeave('a')" ondrop="onDrop(event,'a')">
-        <input type="file" accept=".xlsx,.xls,.csv" onchange="onFileChange(event,'a')">
-        <div class="drop-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+
+      <!-- Compare -->
+      <div class="upload-card" id="card-b">
+        <div class="upload-card-header">
+          <span class="badge badge-compare">COMPARAR</span>
+          <span class="card-title">Planilha de comparação — entradas são medidas a partir daqui</span>
+        </div>
+        <div class="drop-zone" id="drop-b" ondragover="onDragOver(event,'b')" ondragleave="onDragLeave('b')"
+          ondrop="onDrop(event,'b')">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="onFileChange(event,'b')">
+          <div class="drop-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <div class="drop-text">
+            <strong>Arraste ou clique para selecionar</strong>
+            <small>.xlsx · .xls · .csv</small>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Advanced options -->
+    <div class="advanced-block">
+      <button class="advanced-toggle" id="adv-toggle" onclick="toggleAdvanced()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2" />
+        </svg>
+        Opções avançadas — equalizar colunas
+        <span class="toggle-arrow">
+          <svg width="12" height="12" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round">
+            <path d="M1 1l5 5 5-5" />
           </svg>
-        </div>
-        <div class="drop-text">
-          <strong>Arraste ou clique para selecionar</strong>
-          <small>.xlsx · .xls · .csv</small>
-        </div>
+        </span>
+      </button>
+      <div class="advanced-body" id="adv-body">
+        <p class="advanced-desc">
+          Se uma coluna tem nomes diferentes nas duas planilhas, mapeie-as aqui.<br>
+          Ex: <code style="color:var(--accent);font-size:11px;">"Processo"</code> na Base → <code
+            style="color:var(--yellow);font-size:11px;">"Processo Id"</code> na Comparação.
+        </p>
+        <div class="eq-list" id="eq-list"></div>
+        <button class="btn-add-eq" onclick="addEqRow()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Adicionar equalização
+        </button>
       </div>
     </div>
 
-    <!-- Compare -->
-    <div class="upload-card" id="card-b">
-      <div class="upload-card-header">
-        <span class="badge badge-compare">COMPARAR</span>
-        <span class="card-title">Planilha de comparação — entradas são medidas a partir daqui</span>
+    <!-- Controls -->
+    <div class="controls-row">
+      <div class="control-group">
+        <label>Coluna para comparar</label>
+        <select id="col-select" disabled onchange="onColChange()">
+          <option value="">— carregue as planilhas —</option>
+        </select>
       </div>
-      <div class="drop-zone" id="drop-b" ondragover="onDragOver(event,'b')" ondragleave="onDragLeave('b')" ondrop="onDrop(event,'b')">
-        <input type="file" accept=".xlsx,.xls,.csv" onchange="onFileChange(event,'b')">
-        <div class="drop-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </div>
-        <div class="drop-text">
-          <strong>Arraste ou clique para selecionar</strong>
-          <small>.xlsx · .xls · .csv</small>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Advanced options -->
-  <div class="advanced-block">
-    <button class="advanced-toggle" id="adv-toggle" onclick="toggleAdvanced()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
-      Opções avançadas — equalizar colunas
-      <span class="toggle-arrow">
-        <svg width="12" height="12" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l5 5 5-5"/></svg>
-      </span>
-    </button>
-    <div class="advanced-body" id="adv-body">
-      <p class="advanced-desc">
-        Se uma coluna tem nomes diferentes nas duas planilhas, mapeie-as aqui.<br>
-        Ex: <code style="color:var(--accent);font-size:11px;">"Processo"</code> na Base → <code style="color:var(--yellow);font-size:11px;">"Processo Id"</code> na Comparação.
-      </p>
-      <div class="eq-list" id="eq-list"></div>
-      <button class="btn-add-eq" onclick="addEqRow()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Adicionar equalização
+      <button class="btn-primary" id="btn-run" disabled onclick="runDiff()">
+        Gerar Diff
       </button>
     </div>
-  </div>
 
-  <!-- Controls -->
-  <div class="controls-row">
-    <div class="control-group">
-      <label>Coluna para comparar</label>
-      <select id="col-select" disabled onchange="onColChange()">
-        <option value="">— carregue as planilhas —</option>
-      </select>
+    <div class="divider" id="diff-divider" style="display:none"></div>
+
+    <!-- Diff output -->
+    <div class="diff-section" id="diff-section">
+      <div class="diff-header-row">
+        <div class="diff-title" id="diff-title">Diferenças encontradas</div>
+        <div class="diff-stats" id="diff-stats"></div>
+      </div>
+      <div class="source-legend" id="source-legend"></div>
+      <div class="diff-table-wrap">
+        <div id="diff-output"></div>
+      </div>
     </div>
-    <button class="btn-primary" id="btn-run" disabled onclick="runDiff()">
-      Gerar Diff
-    </button>
-  </div>
 
-  <div class="divider" id="diff-divider" style="display:none"></div>
+  </main>
 
-  <!-- Diff output -->
-  <div class="diff-section" id="diff-section">
-    <div class="diff-header-row">
-      <div class="diff-title" id="diff-title">Diferenças encontradas</div>
-      <div class="diff-stats" id="diff-stats"></div>
-    </div>
-    <div class="source-legend" id="source-legend"></div>
-    <div class="diff-table-wrap">
-      <div id="diff-output"></div>
-    </div>
-  </div>
+  <script>
+    // ── State ──
+    const state = { a: null, b: null };
 
-</main>
-
-<script>
-// ── State ──
-const state = { a: null, b: null };
-
-// ── Drag & Drop ──
-function onDragOver(e, side) {
-  e.preventDefault();
-  document.getElementById('drop-' + side).classList.add('dragging');
-}
-function onDragLeave(side) {
-  document.getElementById('drop-' + side).classList.remove('dragging');
-}
-function onDrop(e, side) {
-  e.preventDefault();
-  document.getElementById('drop-' + side).classList.remove('dragging');
-  const file = e.dataTransfer.files[0];
-  if (file) loadFile(file, side);
-}
-function onFileChange(e, side) {
-  const file = e.target.files[0];
-  if (file) loadFile(file, side);
-}
-
-// ── File loading ──
-function loadFile(file, side) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      let data;
-      if (file.name.endsWith('.csv')) {
-        const text = e.target.result;
-        const wb = XLSX.read(text, { type: 'string' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        data = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      } else {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        data = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      }
-      if (!data || data.length === 0) { alert('Planilha vazia ou inválida.'); return; }
-      state[side] = { file, data, columns: Object.keys(data[0]) };
-      renderLoaded(side);
-      updateColumnSelector();
-    } catch (err) {
-      alert('Erro ao ler o arquivo: ' + err.message);
+    // ── Drag & Drop ──
+    function onDragOver(e, side) {
+      e.preventDefault();
+      document.getElementById('drop-' + side).classList.add('dragging');
     }
-  };
-  if (file.name.endsWith('.csv')) {
-    reader.readAsText(file);
-  } else {
-    reader.readAsArrayBuffer(file);
-  }
-}
+    function onDragLeave(side) {
+      document.getElementById('drop-' + side).classList.remove('dragging');
+    }
+    function onDrop(e, side) {
+      e.preventDefault();
+      document.getElementById('drop-' + side).classList.remove('dragging');
+      const file = e.dataTransfer.files[0];
+      if (file) loadFile(file, side);
+    }
+    function onFileChange(e, side) {
+      const file = e.target.files[0];
+      if (file) loadFile(file, side);
+    }
 
-function renderLoaded(side) {
-  const zone = document.getElementById('drop-' + side);
-  const s = state[side];
-  zone.innerHTML = `
+    // ── File loading ──
+    function loadFile(file, side) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          let data;
+          if (file.name.endsWith('.csv')) {
+            const text = e.target.result;
+            const wb = XLSX.read(text, { type: 'string' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          } else {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          }
+          if (!data || data.length === 0) { alert('Planilha vazia ou inválida.'); return; }
+          state[side] = { file, data, columns: Object.keys(data[0]) };
+          renderLoaded(side);
+          updateColumnSelector();
+        } catch (err) {
+          alert('Erro ao ler o arquivo: ' + err.message);
+        }
+      };
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    function renderLoaded(side) {
+      const zone = document.getElementById('drop-' + side);
+      const s = state[side];
+      zone.innerHTML = `
     <div class="file-loaded" style="width:100%">
       <div class="file-loaded-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3dd68c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -813,15 +958,15 @@ function renderLoaded(side) {
       <button class="btn-clear" onclick="clearFile('${side}', event)">Remover</button>
     </div>
   `;
-  zone.style.padding = '0';
-}
+      zone.style.padding = '0';
+    }
 
-function clearFile(side, e) {
-  e.stopPropagation();
-  state[side] = null;
-  const zone = document.getElementById('drop-' + side);
-  zone.style.padding = '';
-  zone.innerHTML = `
+    function clearFile(side, e) {
+      e.stopPropagation();
+      state[side] = null;
+      const zone = document.getElementById('drop-' + side);
+      zone.style.padding = '';
+      zone.innerHTML = `
     <input type="file" accept=".xlsx,.xls,.csv" onchange="onFileChange(event,'${side}')">
     <div class="drop-icon">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -833,186 +978,160 @@ function clearFile(side, e) {
       <small>.xlsx · .xls · .csv</small>
     </div>
   `;
-  zone.ondragover = (ev) => onDragOver(ev, side);
-  zone.ondragleave = () => onDragLeave(side);
-  zone.ondrop = (ev) => onDrop(ev, side);
-  updateColumnSelector();
-  hideDiff();
-}
+      zone.ondragover = (ev) => onDragOver(ev, side);
+      zone.ondragleave = () => onDragLeave(side);
+      zone.ondrop = (ev) => onDrop(ev, side);
+      updateColumnSelector();
+      hideDiff();
+    }
 
-// ── Column selector ──
-function getEqualizations() {
-  const rows = document.querySelectorAll('.eq-row');
-  const map = {};
-  rows.forEach(row => {
-    const inputs = row.querySelectorAll('input');
-    const base = inputs[0].value.trim();
-    const cmp = inputs[1].value.trim();
-    if (base && cmp) map[base] = cmp;
-  });
-  return map;
-}
+    // ── Column selector ──
+    function getEqualizations() {
+      const rows = document.querySelectorAll('.eq-row');
+      const map = {};
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const base = inputs[0].value.trim();
+        const cmp = inputs[1].value.trim();
+        if (base && cmp) map[base] = cmp;
+      });
+      return map;
+    }
 
-function updateColumnSelector() {
-  const sel = document.getElementById('col-select');
-  const btn = document.getElementById('btn-run');
-  sel.innerHTML = '';
+    function updateColumnSelector() {
+      const sel = document.getElementById('col-select');
+      const btn = document.getElementById('btn-run');
+      sel.innerHTML = '';
 
-  if (!state.a || !state.b) {
-    sel.innerHTML = '<option value="">— carregue as planilhas —</option>';
-    sel.disabled = true;
-    btn.disabled = true;
-    return;
-  }
+      if (!state.a || !state.b) {
+        sel.innerHTML = '<option value="">— carregue as planilhas —</option>';
+        sel.disabled = true;
+        btn.disabled = true;
+        return;
+      }
 
-  const eq = getEqualizations();
-  // Build effective column names for B (reverse map: B col → A col name)
-  const bColsNormalized = {};
-  state.b.columns.forEach(c => { bColsNormalized[c] = c; });
-  // For eq: base→cmp means cmp in B equals base in A
-  const revEq = {};
-  Object.entries(eq).forEach(([a, b]) => { revEq[b] = a; });
+      const eq = getEqualizations();
+      // Build effective column names for B (reverse map: B col → A col name)
+      const bColsNormalized = {};
+      state.b.columns.forEach(c => { bColsNormalized[c] = c; });
+      // For eq: base→cmp means cmp in B equals base in A
+      const revEq = {};
+      Object.entries(eq).forEach(([a, b]) => { revEq[b] = a; });
 
-  // Effective B column names as A names
-  const bEffective = new Set(state.b.columns.map(c => revEq[c] || c));
+      // Effective B column names as A names
+      const bEffective = new Set(state.b.columns.map(c => revEq[c] || c));
 
-  const common = state.a.columns.filter(c => bEffective.has(c));
+      const common = state.a.columns.filter(c => bEffective.has(c));
 
-  if (common.length === 0) {
-    sel.innerHTML = '<option value="">Sem colunas em comum</option>';
-    sel.disabled = true;
-    btn.disabled = true;
-    return;
-  }
+      if (common.length === 0) {
+        sel.innerHTML = '<option value="">Sem colunas em comum</option>';
+        sel.disabled = true;
+        btn.disabled = true;
+        return;
+      }
 
-  common.forEach((c, i) => {
-    const opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c;
-    if (i === 0) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  sel.disabled = false;
-  btn.disabled = false;
-}
+      common.forEach((c, i) => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (i === 0) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.disabled = false;
+      btn.disabled = false;
+    }
 
-function onColChange() { hideDiff(); }
+    function onColChange() { hideDiff(); }
 
-// ── Advanced options ──
-function toggleAdvanced() {
-  const toggle = document.getElementById('adv-toggle');
-  const body = document.getElementById('adv-body');
-  toggle.classList.toggle('open');
-  body.classList.toggle('open');
-}
+    // ── Advanced options ──
+    function toggleAdvanced() {
+      const toggle = document.getElementById('adv-toggle');
+      const body = document.getElementById('adv-body');
+      toggle.classList.toggle('open');
+      body.classList.toggle('open');
+    }
 
-function addEqRow() {
-  const list = document.getElementById('eq-list');
-  const row = document.createElement('div');
-  row.className = 'eq-row';
-  row.innerHTML = `
+    function addEqRow() {
+      const list = document.getElementById('eq-list');
+      const row = document.createElement('div');
+      row.className = 'eq-row';
+      row.innerHTML = `
     <input type="text" placeholder="Coluna na BASE" oninput="updateColumnSelector()">
     <span class="eq-sep">→</span>
     <input type="text" placeholder="Coluna na COMPARAÇÃO" oninput="updateColumnSelector()">
     <button class="btn-remove-eq" onclick="this.parentElement.remove(); updateColumnSelector();" title="Remover">×</button>
   `;
-  list.appendChild(row);
-  row.querySelector('input').focus();
-}
-
-// ── Diff logic ──
-function hideDiff() {
-  document.getElementById('diff-section').classList.remove('visible');
-  document.getElementById('diff-divider').style.display = 'none';
-}
-
-function runDiff() {
-  const col = document.getElementById('col-select').value;
-  if (!col || !state.a || !state.b) return;
-
-  const eq = getEqualizations();
-  // Map: colA → colB
-  const colB = eq[col] || col;
-
-  const aData = state.a.data;
-  const bData = state.b.data;
-
-  // Build value sets with original line numbers (1-indexed, row 1 = first data row)
-  const aMap = new Map(); // value → [lineNums]
-  aData.forEach((row, i) => {
-    const val = String(row[col] ?? '').trim();
-    if (!aMap.has(val)) aMap.set(val, []);
-    aMap.get(val).push(i + 2); // +2: row 1 is header
-  });
-
-  const bMap = new Map();
-  bData.forEach((row, i) => {
-    const val = String(row[colB] ?? '').trim();
-    if (!bMap.has(val)) bMap.set(val, []);
-    bMap.get(val).push(i + 2);
-  });
-
-  const allVals = new Set([...aMap.keys(), ...bMap.keys()]);
-
-  const rows = [];
-
-  allVals.forEach(val => {
-    const inA = aMap.has(val);
-    const inB = bMap.has(val);
-
-    if (inA && !inB) {
-      // Removed
-      aMap.get(val).forEach(line => {
-        rows.push({ type: 'removed', val, line, source: 'a' });
-      });
-    } else if (!inA && inB) {
-      // Added
-      bMap.get(val).forEach(line => {
-        rows.push({ type: 'added', val, line, source: 'b' });
-      });
-    } else {
-      // Unchanged — count differences
-      const aLines = aMap.get(val);
-      const bLines = bMap.get(val);
-      const maxCommon = Math.min(aLines.length, bLines.length);
-      // Show as unchanged
-      for (let i = 0; i < maxCommon; i++) {
-        rows.push({ type: 'unchanged', val, lineA: aLines[i], lineB: bLines[i] });
-      }
-      // Extra in A
-      for (let i = maxCommon; i < aLines.length; i++) {
-        rows.push({ type: 'removed', val, line: aLines[i], source: 'a' });
-      }
-      // Extra in B
-      for (let i = maxCommon; i < bLines.length; i++) {
-        rows.push({ type: 'added', val, line: bLines[i], source: 'b' });
-      }
+      list.appendChild(row);
+      row.querySelector('input').focus();
     }
-  });
 
-  // Sort: removed first by lineA, then added, then unchanged
-  rows.sort((a, b) => {
-    const order = { removed: 0, added: 1, unchanged: 2 };
-    if (order[a.type] !== order[b.type]) return order[a.type] - order[b.type];
-    const la = a.line || a.lineA || 0;
-    const lb = b.line || b.lineA || 0;
-    return la - lb;
-  });
+    // ── Diff logic ──
+    function hideDiff() {
+      document.getElementById('diff-section').classList.remove('visible');
+      document.getElementById('diff-divider').style.display = 'none';
+    }
 
-  const removed = rows.filter(r => r.type === 'removed').length;
-  const added = rows.filter(r => r.type === 'added').length;
-  const unchanged = rows.filter(r => r.type === 'unchanged').length;
+    function runDiff() {
+      const col = document.getElementById('col-select').value;
+      if (!col || !state.a || !state.b) return;
 
-  // Render stats
-  document.getElementById('diff-stats').innerHTML = `
+      const eq = getEqualizations();
+      const colB = eq[col] || col;
+
+      const aData = state.a.data;
+      const bData = state.b.data;
+
+      const aMap = new Map();
+      aData.forEach((row, i) => {
+        const val = String(row[col] ?? '').trim();
+        if (!aMap.has(val)) aMap.set(val, []);
+        aMap.get(val).push(i + 2);
+      });
+
+      const bMap = new Map();
+      bData.forEach((row, i) => {
+        const val = String(row[colB] ?? '').trim();
+        if (!bMap.has(val)) bMap.set(val, []);
+        bMap.get(val).push(i + 2);
+      });
+
+      const allVals = new Set([...aMap.keys(), ...bMap.keys()]);
+      const diffRows = [];
+
+      allVals.forEach(val => {
+        const aLines = aMap.get(val) || [];
+        const bLines = bMap.get(val) || [];
+
+        const max = Math.max(aLines.length, bLines.length);
+
+        for (let i = 0; i < max; i++) {
+          const left = aLines[i] ? { val, line: aLines[i] } : null;
+          const right = bLines[i] ? { val, line: bLines[i] } : null;
+
+          let type;
+          if (left && !right) type = 'removed';
+          else if (!left && right) type = 'added';
+          else if (left && right && left.val !== right.val) type = 'changed';
+          else type = 'unchanged';
+
+          diffRows.push({ left, right, type });
+        }
+      });
+
+      const removed = diffRows.filter(r => r.type === 'removed').length;
+      const added = diffRows.filter(r => r.type === 'added').length;
+      const unchanged = diffRows.filter(r => r.type === 'unchanged').length;
+
+      document.getElementById('diff-stats').innerHTML = `
     <span class="stat-pill stat-removed">− ${removed} saiu</span>
     <span class="stat-pill stat-added">+ ${added} entrou</span>
     <span class="stat-pill stat-unchanged">= ${unchanged} igual</span>
   `;
 
-  document.getElementById('diff-title').textContent = `Coluna: ${col}${colB !== col ? ' ↔ ' + colB : ''}`;
+      document.getElementById('diff-title').textContent =
+        `Coluna: ${col}${colB !== col ? ' ↔ ' + colB : ''}`;
 
-  document.getElementById('source-legend').innerHTML = `
+      document.getElementById('source-legend').innerHTML = `
     <div class="legend-item">
       <div class="legend-dot legend-dot-base"></div>
       <span class="legend-text">BASE:</span>
@@ -1025,58 +1144,93 @@ function runDiff() {
     </div>
   `;
 
-  // Build table
-  let html = `<table>
-    <thead>
-      <tr>
-        <th style="width:40px">Tipo</th>
-        <th>Valor</th>
-        <th style="width:90px">Linha orig.</th>
-        <th style="width:110px">Planilha</th>
-      </tr>
-    </thead>
-    <tbody>`;
+      let html = `<table>
+  <thead>
+    <tr>
+      <th colspan="3">BASE</th>
+      <th colspan="3">COMPARAÇÃO</th>
+    </tr>
+    <tr>
+      <th style="width:30px"></th>
+      <th style="width:70px">Linha</th>
+      <th>Valor</th>
+      <th style="width:30px"></th>
+      <th style="width:70px">Linha</th>
+      <th>Valor</th>
+    </tr>
+  </thead>
+  <tbody>`;
 
-  if (rows.length === 0) {
-    html += `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-dim);font-family:var(--sans)">Nenhuma diferença encontrada — as colunas são idênticas.</td></tr>`;
-  }
+      if (diffRows.length === 0) {
+        html += `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-dim)">
+      Nenhuma diferença encontrada
+    </td></tr>`;
+      }
 
-  rows.forEach(row => {
-    if (row.type === 'removed') {
-      html += `<tr class="row-removed">
-        <td class="td-marker">−</td>
-        <td class="td-value">${esc(row.val)}</td>
-        <td class="td-line">${row.line}</td>
-        <td class="td-source">BASE</td>
-      </tr>`;
-    } else if (row.type === 'added') {
-      html += `<tr class="row-added">
-        <td class="td-marker">+</td>
-        <td class="td-value">${esc(row.val)}</td>
-        <td class="td-line">${row.line}</td>
-        <td class="td-source">COMPARAÇÃO</td>
-      </tr>`;
-    } else {
-      html += `<tr class="row-unchanged">
-        <td class="td-marker" style="color:var(--text-dim)">=</td>
-        <td class="td-value" style="color:var(--text-muted)">${esc(row.val)}</td>
-        <td class="td-line">${row.lineA} / ${row.lineB}</td>
-        <td class="td-source">ambas</td>
-      </tr>`;
+      diffRows.forEach(r => {
+
+        let rowClass = '';
+        let leftMarker = '';
+        let rightMarker = '';
+
+        if (r.type === 'removed') {
+          rowClass = 'row-removed';
+          leftMarker = '−';
+        }
+
+        if (r.type === 'added') {
+          rowClass = 'row-added';
+          rightMarker = '+';
+        }
+
+        if (r.type === 'changed') {
+          rowClass = ''; // dividido entre os dois lados
+          leftMarker = '−';
+          rightMarker = '+';
+        }
+
+        if (r.type === 'unchanged') {
+          rowClass = 'row-unchanged';
+          leftMarker = '=';
+          rightMarker = '=';
+        }
+
+        html += `<tr class="${rowClass}">
+
+          <td class="td-marker">${leftMarker}</td>
+          <td class="td-line">
+            ${r.left ? r.left.line : ''}
+          </td>
+          <td class="td-value">
+            ${r.left ? esc(r.left.val) : ''}
+          </td>
+
+          <td class="td-marker">${rightMarker}</td>
+          <td class="td-line">
+            ${r.right ? r.right.line : ''}
+          </td>
+          <td class="td-value">
+            ${r.right ? esc(r.right.val) : ''}
+          </td>
+
+        </tr>`;
+      });
+
+      html += '</tbody></table>';
+
+      document.getElementById('diff-output').innerHTML = html;
+      document.getElementById('diff-section').classList.add('visible');
+      document.getElementById('diff-divider').style.display = 'block';
+      document.getElementById('diff-section').scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
     }
-  });
 
-  html += '</tbody></table>';
-
-  document.getElementById('diff-output').innerHTML = html;
-  document.getElementById('diff-section').classList.add('visible');
-  document.getElementById('diff-divider').style.display = 'block';
-  document.getElementById('diff-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-</script>
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  </script>
 </body>
+
 </html>
